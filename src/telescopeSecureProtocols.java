@@ -19,6 +19,7 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import java.util.Map;
 import java.util.Set;
+import javax.net.ssl.HttpsURLConnection;
 
 @Command(name = "Greeting", mixinStandardHelpOptions = true)
 public class telescopeSecureProtocols implements Runnable {
@@ -120,6 +121,8 @@ public class telescopeSecureProtocols implements Runnable {
 
          if (tlsVersion >= Integer.parseInt(success_criteria)){
             flag_id = 2;
+         } else {
+            flag_id = 1;         
          }
 
         if (verbose) {
@@ -157,7 +160,7 @@ public class telescopeSecureProtocols implements Runnable {
                 if (endpoint != null) {
 
                     URL url = new URL(endpoint);
-                    HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                    HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
                     con.setRequestMethod("GET");
                     con.setRequestProperty("Content-Type", "application/json");
                     con.setRequestProperty("Authorization", "Bearer ".concat(token));
