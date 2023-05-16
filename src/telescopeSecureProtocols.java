@@ -35,9 +35,8 @@ public class telescopeSecureProtocols implements Runnable {
     String password = System.getenv("PG_PASSWORD");
 
     //@Parameters(paramLabel = "<dbUrl>", defaultValue = "jdbc:postgresql://postgresql:5432/telescope", description = "Db URL")
-    //String url;
-    String url = "jdbc:postgresql://localhost:5432/telescope";
-    //String url = System.getenv("PG_DB");
+    // Example DB String: "jdbc:postgresql://localhost:5432/telescope";
+    String url = System.getenv("PG_DB");
     @Option(names = { "-v",
             "--verbose" }, description = "Verbose mode. Helpful for troubleshooting. Multiple -v options increase the verbosity.")
     private boolean verbose;
