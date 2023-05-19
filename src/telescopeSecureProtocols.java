@@ -8,18 +8,27 @@
 //DEPS com.googlecode.json-simple:json-simple:1.1.1
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
 
 import java.net.*;
-import java.io.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.sql.*;
+
 import org.json.simple.JSONObject;
 import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import java.util.Map;
-import java.util.Set;
-import javax.net.ssl.HttpsURLConnection;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.security.cert.X509Certificate;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+
+
 
 @Command(name = "Greeting", mixinStandardHelpOptions = true)
 public class telescopeSecureProtocols implements Runnable {
@@ -100,16 +109,49 @@ public class telescopeSecureProtocols implements Runnable {
         return affectedrows;
     }
 
+     /**
+     * Generate 
+     * 
+     * @return the insecure SecurityContext
+         * @throws NoSuchAlgorithmException
+         * @throws KeyManagementException
+     */
+    public SSLContext getInsecureSslContext() throws NoSuchAlgorithmException, KeyManagementException {
+
+        TrustManager[] trustAllCerts = {
+            new X509TrustManager() {
+                @Override
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+                @Override
+                public void checkClientTrusted(
+                    X509Certificate[] certs, String authType) {
+                }
+                @Override
+                public void checkServerTrusted(
+                    X509Certificate[] certs, String authType) {
+                }
+            }
+        };
+
+        SSLContext sc = SSLContext.getInstance("SSL");
+        sc.init(null, trustAllCerts, new SecureRandom());
+
+        return sc;
+}
+
+
     /**
      * Update the flag depending the score.
      * 
      * @param StringBuilder responseData
      * @throws ParseException
      */
-    public void setFlagDependingScore(StringBuilder responseData) throws ParseException {
+    public void setFlagDependingScore(String responseData) throws ParseException {
 
         JSONParser parser = new JSONParser();
-        JSONObject responseJsonObject = (JSONObject) parser.parse(responseData.toString());
+        JSONObject responseJsonObject = (JSONObject) parser.parse(responseData);
         JSONArray arr = (JSONArray) responseJsonObject.get("items");
         JSONObject new_obj = (JSONObject) arr.get(0);
         JSONObject statusObj = (JSONObject) new_obj.get("status");
@@ -152,29 +194,23 @@ public class telescopeSecureProtocols implements Runnable {
                     System.out.printf("integration_id: %s\n", integration_id);
                     System.out.printf("capability_id: %s\n", capability_id);
                     System.out.printf("endpoint: %s\n", endpoint);
-                    //System.out.printf("token: %s\n", token);
                     System.out.printf("success_criteria: %s\n", success_criteria);
                 }
 
                 if (endpoint != null) {
 
-                    URL url = new URL(endpoint);
-                    HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-                    con.setRequestMethod("GET");
-                    con.setRequestProperty("Content-Type", "application/json");
-                    con.setRequestProperty("Authorization", "Bearer ".concat(token));
-                    con.setRequestProperty("Accept", "application/json");
+                    HttpClient httpClient = HttpClient.newBuilder().sslContext(getInsecureSslContext()).build();
+                    HttpRequest request = HttpRequest.newBuilder()
+                    .GET()
+                    .uri(URI.create(endpoint))
+                    .header("Authorization", "Bearer ".concat(token))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .build();
 
-                    try (BufferedReader br = new BufferedReader(
-                            new InputStreamReader(con.getInputStream(), "utf-8"))) {
-                        StringBuilder response = new StringBuilder();
-                        String responseLine = null;
-                        while ((responseLine = br.readLine()) != null) {
-                            response.append(responseLine.trim());
-                        }
-                        br.close();
-                        setFlagDependingScore(response);
-                    }
+                    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+                    
+                    setFlagDependingScore(response.body());
                 }
             }
         } catch (SQLException e) {
